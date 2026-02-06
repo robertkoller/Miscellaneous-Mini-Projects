@@ -1,0 +1,189 @@
+body {
+  font-family: Arial, sans-serif;
+  background: #faf8ef;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  margin: 0;
+}
+
+.container {
+  text-align: center;
+}
+
+.scoreboard {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  font-weight: bold;
+  gap: 20px;
+}
+
+.game {
+  background: #bbada0;
+  padding: 10px;
+  border-radius: 8px;
+  position: relative;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(4, 80px);
+  grid-template-rows: repeat(4, 80px);
+  gap: 10px;
+  position: relative;
+}
+
+.tile {
+  width: 80px;
+  height: 80px;
+  border-radius: 6px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 28px;
+  font-weight: bold;
+  
+  /* Smooth transitions for movement and color changes */
+  transition: 
+    grid-row 0.15s ease,
+    grid-column 0.15s ease,
+    background-color 0.2s ease,
+    transform 0.15s ease;
+}
+
+/* Animation for newly created tiles - pop in */
+.tile.new {
+  animation: pop 0.2s ease;
+}
+
+@keyframes pop {
+  0% { 
+    transform: scale(0);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% { 
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.controls {
+  margin-bottom: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.speed-control {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 14px;
+}
+
+.speed-control label {
+  font-weight: bold;
+  color: #776e65;
+}
+
+.speed-control input {
+  width: 70px;
+  padding: 4px 8px;
+  border: 2px solid #bbada0;
+  border-radius: 4px;
+  font-size: 14px;
+  text-align: center;
+}
+
+button {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 4px;
+  background: #8f7a66;
+  color: white;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #7c6854;
+}
+
+
+/* Tile colors */
+.tile-0 { 
+  background: #cdc1b4;
+  color: transparent;
+}
+
+.tile-2 { 
+  background: #eee4da; 
+  color: #776e65; 
+}
+
+.tile-4 { 
+  background: #ede0c8; 
+  color: #776e65; 
+}
+
+.tile-8 { 
+  background: #f2b179; 
+  color: #f9f6f2; 
+}
+
+.tile-16 { 
+  background: #f59563; 
+  color: #f9f6f2; 
+}
+
+.tile-32 { 
+  background: #f67c5f; 
+  color: #f9f6f2; 
+}
+
+.tile-64 { 
+  background: #f65e3b; 
+  color: #f9f6f2; 
+}
+
+.tile-128 { 
+  background: #edcf72; 
+  color: #f9f6f2;
+  font-size: 24px;
+}
+
+.tile-256 { 
+  background: #edcc61; 
+  color: #f9f6f2;
+  font-size: 24px;
+}
+
+.tile-512 { 
+  background: #edc850; 
+  color: #f9f6f2;
+  font-size: 24px;
+}
+
+.tile-1024 { 
+  background: #edc53f; 
+  color: #f9f6f2;
+  font-size: 20px;
+}
+
+.tile-2048 { 
+  background: #edc22e; 
+  color: #f9f6f2;
+  font-size: 20px;
+}
+
+.tile-4096 { 
+  background: #3c3a32; 
+  color: #f9f6f2;
+  font-size: 18px;
+}

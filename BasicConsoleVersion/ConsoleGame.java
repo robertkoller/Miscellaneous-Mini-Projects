@@ -1,3 +1,4 @@
+package BasicConsoleVersion;
 import java.util.Scanner;
 
 public class ConsoleGame {
