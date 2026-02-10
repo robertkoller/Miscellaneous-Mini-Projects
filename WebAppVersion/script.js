@@ -22,31 +22,14 @@ function init() {
 }
 // Positive numbers means mergable and how many spots away, negative means non mergable and how many spots away,
 // 0 means all empty spots in that direction, -2 means mergable but no empty spots in between, -1 means non mergable and no empty spots in between
-const piece = {
-  left: {
-    emptySpaces: number,
-    firstBlockDistance: number | null,
-    mergeable: boolean
-}
-,
-  right: {
-  emptySpaces: number,
-  firstBlockDistance: number | null,
-  mergeable: boolean
-}
-,
-  up: {
-    emptySpaces: number,
-    firstBlockDistance: number | null,
-    mergeable: boolean
-  },
-  down: {
-    emptySpaces: number,
-    firstBlockDistance: number | null,
-    mergeable: boolean
-  },
+const pieceTemplate = {
+  left: { emptySpaces: 0, firstBlockDistance: null, mergeable: false },
+  right: { emptySpaces: 0, firstBlockDistance: null, mergeable: false },
+  up: { emptySpaces: 0, firstBlockDistance: null, mergeable: false },
+  down: { emptySpaces: 0, firstBlockDistance: null, mergeable: false },
   value: 2
-}
+};
+
 
 function evaluateDirection(piece, dx, dy) {
   let emptySpaces = 0;
@@ -61,7 +44,7 @@ function evaluateDirection(piece, dx, dy) {
     x += dx;
     y += dy;
 
-    if (x < 0 || x >= 4 || y < 0 || y >= 4){
+    if (x < 0 || x >= 4 || y < 0 || y >= 4) {
       break;
     }
 
@@ -94,23 +77,23 @@ function evaluatePiece(piece) {
 
 function render(newTilePos = null) {
   grid.innerHTML = "";
-  
+
   for (let r = 0; r < 4; r++) {
     for (let c = 0; c < 4; c++) {
       const cell = board[r][c];
       const value = cell ? cell.value : 0;
       const tile = document.createElement("div");
       tile.className = `tile tile-${value}`;
-      
+
       // Add 'new' class for newly created tiles
       if (newTilePos && newTilePos.r === r && newTilePos.c === c && newTilePos.isNew) {
         tile.classList.add("new");
       }
-      
+
       tile.textContent = value || "";
       tile.style.gridRow = r + 1;
       tile.style.gridColumn = c + 1;
-      
+
       grid.appendChild(tile);
     }
   }
@@ -139,10 +122,10 @@ function addRandomTile() {
     down: {}
   };
 
-  piece = evaluatePiece(piece);
+  evaluatePiece(piece);
   board[xPos][yPos] = piece;
   emptyPlaces.delete(index);
-
+  reevaluateBoard();
   return piece;
 }
 resetBtn.addEventListener("click", resetGame);
@@ -151,7 +134,9 @@ function resetGame() {
   stopAI();
   aiBtn.textContent = "Start AI";
 
-  board = Array(4).fill().map(() => Array(4).fill(0));
+  board = Array.from({ length: 4 }, () => Array(4).fill(null));
+  emptyPlaces = new Set([...Array(16).keys()]);
+
   score = 0;
   highest = 0;
 
@@ -186,18 +171,18 @@ function stopAI() {
   }
 }
 
-function hasMoves(direction){
+function hasMoves(direction) {
   for (let r = 0; r < 4; r++) {
     for (let c = 0; c < 4; c++) {
       const cell = board[r][c];
       if (cell) {
         if (cell[direction].mergeable || cell[direction].emptySpaces > 0) {
-          return {meargeable: cell[direction].mergeable, moveable: cell[direction].emptySpaces > 0};
+          return { mergeable: cell[direction].mergeable, moveable: cell[direction].emptySpaces > 0 };
         }
       }
     }
   }
-  return {mergeable:false, moveable:false};
+  return { mergeable: false, moveable: false };
 }
 
 function aiStep() {
@@ -209,35 +194,78 @@ function aiStep() {
   if (!(left.mergeable || left.moveable) && !(down.mergeable || down.moveable)) {
     if (up.mergeable || up.moveable) {
       move("up");
-      move("down");
+      if (hasMoves("down").mergeable || hasMoves("down").moveable) {
+        move("down");
+      }
+      else if (left.mergeable || left.moveable) {
+        move("left");
+      }
     } else {
       move("right");
       move("left");
     }
     return;
   }
-  else{
-    
+  else {
+    if (down.mergeable) {
+      move("down");
+      return;
+    }
+    else {
+      move("left");
+      return;
+    }
   }
   //const dir = moves[Math.floor(Math.random() * moves.length)];
   move(dir);
 }
 
-function merge(line) {
-  //const newLine = line.filter(x => x !== null);
-  const newLine = line;
-  for (let i = 0; i < newLine.length - 1; i++){
-    if (newLine[i].value === newLine[i + 1].value) {
-      newLine[i].value *= 2;
-      score += newLine[i].value;
-      highest = Math.max(highest, newLine[i].value);
-      newLine[i + 1] = null;
+function reevaluateBoard() {
+  // Rebuild emptyPlaces from scratch
+  emptyPlaces.clear();
+  
+  for (let r = 0; r < 4; r++) {
+    for (let c = 0; c < 4; c++) {
+      if (board[r][c]) {
+        board[r][c].xPos = r;
+        board[r][c].yPos = c;
+        evaluatePiece(board[r][c]);
+      } else {
+        // Add empty position to emptyPlaces
+        emptyPlaces.add(r * 4 + c);
+      }
     }
   }
-  return newLine;
 }
+
+
+function compress(line) {
+  const filtered = line.filter(cell => cell !== null);
+  while (filtered.length < 4) filtered.push(null);
+  return filtered;
+}
+
+function merge(line) {
+  line = compress(line);
+
+  for (let i = 0; i < 3; i++) {
+    if (
+      line[i] &&
+      line[i + 1] &&
+      line[i].value === line[i + 1].value
+    ) {
+      line[i].value *= 2;
+      score += line[i].value;
+      highest = Math.max(highest, line[i].value);
+      line[i + 1] = null;
+    }
+  }
+
+  return compress(line);
+}
+
 function moveHelper(direction) {
-  if (!hasMoves(direction).mergeable || !hasMoves(direction).moveable) return false;
+  if (!hasMoves(direction).mergeable && !hasMoves(direction).moveable) return false;
   let moved = false;
   for (let r = 0; r < 4; r++) {
     let newRow = merge(board[r]);
@@ -264,13 +292,15 @@ function move(direction) {
   for (let i = 0; i < rotations; i++) rotateBoardCCW();
 
   const moved = moveHelper(direction);
+  
 
   for (let i = 0; i < (4 - rotations) % 4; i++) rotateBoardCCW();
 
   if (moved) {
+    reevaluateBoard();
     // Render first to show movement
     render();
-    
+
     // Add new tile after a short delay to let movement animation finish
     setTimeout(() => {
       const newTilePos = addRandomTile();
