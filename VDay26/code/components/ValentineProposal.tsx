@@ -5,13 +5,14 @@ import React, { useState } from 'react';
 declare const confetti: any;
 
 const GIFS = {
-  START: "./editinggifs/outputs/baby_monkey_GIF.gif",   // The initial cute gif
-  SAD_1: "./editinggifs/outputs/shakeHead.gif",    // After the 1st "No"
-  SAD_2: "./editinggifs/outputs/tsIsValid.gif",    // After the 2nd "No"
-  SAD_3: "./editinggifs/outputs/please.gif",    // After the 3rd "No"
-  SAD_MAX: "./editinggifs/outputs/catEyes.gif",  // After the 4th "No"
-  SUCCESS: "./editinggifs/outputs/yes.gif"    // When she clicks "Yes"
+  START: "gif/baby_monkey_GIF.gif",
+  SAD_1: "gif/shakeHead.gif",
+  SAD_2: "gif/tsIsValid.gif",
+  SAD_3: "gif/please.gif",
+  SAD_MAX: "gif/catEyes.gif",
+  SUCCESS: "gif/yes.gif"
 };
+
 
 const REJECTION_PHRASES = [
   "No",
