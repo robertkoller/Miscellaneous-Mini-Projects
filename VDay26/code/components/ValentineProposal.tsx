@@ -6,11 +6,11 @@ declare const confetti: any;
 
 const GIFS = {
   START: "./editinggifs/outputs/baby_monkey_GIF.gif",   // The initial cute gif
-  SAD_1: "./gifs/sideEye.gif",    // After the 1st "No"
-  SAD_2: "./gifs/tsIsValid.gif",    // After the 2nd "No"
-  SAD_3: "./gifs/sad3.gif",    // After the 3rd "No"
-  SAD_MAX: "./gifs/sad4.gif",  // After the 4th "No"
-  SUCCESS: "./gifs/yes.gif"    // When she clicks "Yes"
+  SAD_1: "./editinggifs/outputs/shakeHead.gif",    // After the 1st "No"
+  SAD_2: "./editinggifs/outputs/tsIsValid.gif",    // After the 2nd "No"
+  SAD_3: "./editinggifs/outputs/please.gif",    // After the 3rd "No"
+  SAD_MAX: "./editinggifs/outputs/catEyes.gif",  // After the 4th "No"
+  SUCCESS: "./editinggifs/outputs/yes.gif"    // When she clicks "Yes"
 };
 
 const REJECTION_PHRASES = [
