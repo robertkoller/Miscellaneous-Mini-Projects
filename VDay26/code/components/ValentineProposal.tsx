@@ -102,11 +102,6 @@ export const ValentineProposal: React.FC = () => {
               className="rounded-full shadow-2xl border-4 border-white w-72 h-72 md:w-[420px] md:h-[420px] object-cover transition-all duration-500 hover:scale-105" 
               onError={(e) => { e.currentTarget.src = "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExOHpueWp3bmh4ZzV5ZzN5ZzZ5ZzZ5ZzZ5ZzZ5ZzZ5ZzZ5JmVwPXYxX2ludGVybmFsX2dpZl9ieV9pZCZjdD1n/MDJ9IbM3vUzp0pM4WJ/giphy.gif" }}
             />
-            {noCount > 2 && (
-                <div className="absolute inset-0 bg-black/20 rounded-full flex items-center justify-center pointer-events-none">
-                    <span className="text-8xl">😿</span>
-                </div>
-            )}
         </div>
         <h1 className="font-love text-4xl md:text-6xl text-rose-500 mt-12 text-center leading-tight drop-shadow-sm animate-heartbeat">
           Will you be my valentine?
