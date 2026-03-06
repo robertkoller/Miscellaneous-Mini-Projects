@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Reversal Scanner</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #0d1117;
+      color: #e6edf3;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 14px;
+      min-height: 100vh;
+    }
+
+    /* Header */
+    header { padding: 24px 32px 14px; border-bottom: 1px solid #21262d; }
+    header h1 { font-size: 20px; font-weight: 600; color: #f0f6fc; }
+    header p  { margin-top: 5px; color: #8b949e; font-size: 13px; }
+
+    /* Tabs */
+    #tabs {
+      display: flex;
+      gap: 0;
+      border-bottom: 1px solid #21262d;
+      padding: 0 32px;
+      background: #0d1117;
+    }
+
+    .tab-btn {
+      padding: 10px 20px;
+      border: none;
+      border-bottom: 2px solid transparent;
+      background: transparent;
+      color: #8b949e;
+      font-size: 14px;
+      cursor: pointer;
+      transition: color 0.15s, border-color 0.15s;
+      margin-bottom: -1px;
+    }
+
+    .tab-btn:hover { color: #e6edf3; }
+
+    .tab-btn.active {
+      color: #f0f6fc;
+      border-bottom-color: #238636;
+      font-weight: 600;
+    }
+
+    /* Controls bar */
+    #controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 32px;
+      border-bottom: 1px solid #21262d;
+    }
+
+    #controls-label { color: #8b949e; font-size: 13px; margin-right: 4px; }
+
+    .toggle-btn {
+      padding: 5px 14px;
+      border-radius: 6px;
+      border: 1px solid #30363d;
+      background: #21262d;
+      color: #8b949e;
+      font-size: 13px;
+      cursor: pointer;
+      transition: background 0.1s, color 0.1s;
+    }
+
+    .toggle-btn.active {
+      background: #238636;
+      border-color: #238636;
+      color: #fff;
+      font-weight: 600;
+    }
+
+    .toggle-btn:hover:not(.active) { background: #30363d; color: #e6edf3; }
+
+    /* Status bar */
+    #status-bar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 32px;
+      background: #161b22;
+      border-bottom: 1px solid #21262d;
+      font-size: 13px;
+      color: #8b949e;
+    }
+
+    #progress-track {
+      flex: 1;
+      max-width: 260px;
+      height: 4px;
+      background: #21262d;
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    #progress-fill {
+      height: 100%;
+      width: 0%;
+      background: #238636;
+      border-radius: 2px;
+      transition: width 0.2s ease;
+    }
+
+    #status-text  { flex: 1; }
+
+    .spinner {
+      display: inline-block;
+      width: 12px; height: 12px;
+      border: 2px solid #21262d;
+      border-top-color: #58a6ff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      flex-shrink: 0;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Table */
+    main { padding: 24px 32px; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+
+    thead th {
+      text-align: left;
+      padding: 8px 12px;
+      color: #8b949e;
+      font-weight: 500;
+      border-bottom: 1px solid #21262d;
+      white-space: nowrap;
+    }
+
+    thead th.right { text-align: right; }
+
+    tbody tr { border-bottom: 1px solid #161b22; transition: background 0.1s; }
+    tbody tr:hover { background: #161b22; }
+
+    tbody td { padding: 10px 12px; vertical-align: middle; white-space: nowrap; }
+    tbody td.right { text-align: right; }
+
+    .rank   { color: #8b949e; width: 36px; }
+
+    .symbol { font-weight: 600; font-size: 14px; color: #f0f6fc; }
+    .symbol a { color: inherit; text-decoration: none; }
+    .symbol a:hover { color: #58a6ff; text-decoration: underline; }
+
+    .asset-type {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 500;
+      padding: 1px 6px;
+      border-radius: 3px;
+      margin-left: 6px;
+      vertical-align: middle;
+      background: #21262d;
+      color: #8b949e;
+    }
+
+    .score        { font-size: 15px; font-weight: 700; }
+    .score.high   { color: #3fb950; }
+    .score.medium { color: #e3b341; }
+    .score.low    { color: #8b949e; }
+    .score.none   { color: #484f58; }
+
+    .trend-up   { color: #3fb950; }
+    .trend-down { color: #f85149; }
+    .trend-flat { color: #8b949e; }
+    .r-value    { color: #8b949e; }
+
+    .badge-error {
+      display: inline-block;
+      padding: 2px 8px;
+      background: #2d1b1b;
+      color: #f85149;
+      border-radius: 4px;
+      font-size: 11px;
+    }
+
+    /* Empty state */
+    #empty-state {
+      display: none;
+      padding: 48px 32px;
+      text-align: center;
+      color: #484f58;
+      font-size: 14px;
+    }
+
+    #empty-state p { margin-top: 8px; font-size: 13px; }
+
+    /* Legend */
+    #legend {
+      margin-top: 24px;
+      padding: 16px;
+      background: #161b22;
+      border: 1px solid #21262d;
+      border-radius: 6px;
+      color: #8b949e;
+      font-size: 12px;
+      line-height: 1.7;
+      max-width: 700px;
+    }
+
+    #legend strong { color: #c9d1d9; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Reversal Scanner</h1>
+  <p>Ranks assets by long-term decline followed by a recent upturn (~3-week reversal pattern)</p>
+</header>
+
+<!-- Tab switcher -->
+<div id="tabs">
+  <button class="tab-btn active" id="tab-crypto" onclick="switchTab('crypto')">Crypto</button>
+  <button class="tab-btn"        id="tab-stocks" onclick="switchTab('stocks')">Stocks</button>
+</div>
+
+<!-- Controls — each tab shows its own set of count buttons -->
+<div id="controls">
+  <span id="controls-label">Coins to scan:</span>
+
+  <span id="crypto-controls">
+    <button class="toggle-btn active" id="btn-crypto-10"      onclick="startScan('crypto', 10)">10</button>
+    <button class="toggle-btn"        id="btn-crypto-50"      onclick="startScan('crypto', 50)">50</button>
+    <button class="toggle-btn"        id="btn-crypto-dynamic" onclick="startScan('crypto', 'dynamic')">Top 100 live</button>
+  </span>
+
+  <span id="stocks-controls" style="display:none">
+    <button class="toggle-btn" id="btn-stocks-25" onclick="startScan('stocks', 25)">25</button>
+    <button class="toggle-btn" id="btn-stocks-50" onclick="startScan('stocks', 50)">50</button>
+  </span>
+</div>
+
+<!-- Status bar -->
+<div id="status-bar">
+  <div class="spinner" id="spinner"></div>
+  <div id="status-text">Connecting...</div>
+  <div id="progress-track"><div id="progress-fill"></div></div>
+  <div id="progress-label">0 / ?</div>
+</div>
+
+<main>
+  <!-- Empty state shown before first scan on a tab -->
+  <div id="empty-state">
+    Select a count above to start scanning
+    <p>No API calls are made until you start a scan.</p>
+  </div>
+
+  <table id="results-table">
+    <thead>
+      <tr>
+        <th class="rank">#</th>
+        <th>Symbol</th>
+        <th class="right">Score</th>
+        <th class="right">Long-term change</th>
+        <th class="right">Long-term R</th>
+        <th class="right">Recent change</th>
+        <th class="right">Recent R</th>
+      </tr>
+    </thead>
+    <tbody id="results-body"></tbody>
+  </table>
+
+  <div id="legend">
+    <strong>How to read this table</strong><br>
+    <strong>Score</strong> — composite signal strength. Higher = stronger match for the reversal pattern.<br>
+    <strong>Long-term change</strong> — regression-estimated % move over ~10 months. Negative (red) is what the pattern needs.<br>
+    <strong>Long-term R</strong> — how linear/consistent that trend was (0 = noise, 1 = straight line).<br>
+    <strong>Recent change</strong> — regression-estimated % move over the last 3 weeks. Positive (green) is what the pattern needs.<br>
+    <strong>Recent R</strong> — how consistent the recent upturn has been.
+  </div>
+</main>
+
+<script>
+  // ==========================================================================
+  // Helpers
+  // ==========================================================================
+
+  function fmt(pct, d = 1) {
+    return `${pct >= 0 ? "+" : ""}${pct.toFixed(d)}%`;
+  }
+
+  function scoreClass(s) {
+    if (s >= 20) return "high";
+    if (s >= 8)  return "medium";
+    if (s > 0)   return "low";
+    return "none";
+  }
+
+  function trendClass(pct) {
+    if (pct >  0.5) return "trend-up";
+    if (pct < -0.5) return "trend-down";
+    return "trend-flat";
+  }
+
+  function trendArrow(pct) {
+    if (pct >  0.5) return "▲ ";
+    if (pct < -0.5) return "▼ ";
+    return "— ";
+  }
+
+  function assetLink(result) {
+    if (result.type === "stocks") {
+      return `https://finance.yahoo.com/quote/${result.symbol}`;
+    }
+    return `https://www.coinbase.com/price/${result.slug || result.symbol.replace("-USD", "").toLowerCase()}`;
+  }
+
+  function displaySymbol(result) {
+    // For crypto, strip "-USD". For stocks, show as-is.
+    return result.type === "stocks"
+      ? result.symbol
+      : result.symbol.replace("-USD", "");
+  }
+
+  // ==========================================================================
+  // DOM refs
+  // ==========================================================================
+
+  const tbody         = document.getElementById("results-body");
+  const statusText    = document.getElementById("status-text");
+  const progressFill  = document.getElementById("progress-fill");
+  const progressLabel = document.getElementById("progress-label");
+  const spinner       = document.getElementById("spinner");
+  const emptyState    = document.getElementById("empty-state");
+  const resultsTable  = document.getElementById("results-table");
+  const controlsLabel = document.getElementById("controls-label");
+
+  // ==========================================================================
+  // State
+  // ==========================================================================
+
+  let activeEs  = null;  // currently open EventSource
+  let activeTab = "crypto";
+
+  // ==========================================================================
+  // Tab switching
+  // ==========================================================================
+
+  function switchTab(tab) {
+    if (tab === activeTab) return;
+    activeTab = tab;
+
+    // Update tab styles
+    document.getElementById("tab-crypto").classList.toggle("active", tab === "crypto");
+    document.getElementById("tab-stocks").classList.toggle("active", tab === "stocks");
+
+    // Show/hide per-tab controls
+    document.getElementById("crypto-controls").style.display = tab === "crypto" ? "" : "none";
+    document.getElementById("stocks-controls").style.display = tab === "stocks" ? "" : "none";
+    controlsLabel.textContent = tab === "crypto" ? "Coins to scan:" : "Stocks to scan:";
+
+    // Cancel any in-progress scan and show empty state
+    if (activeEs) { activeEs.close(); activeEs = null; }
+    tbody.innerHTML       = "";
+    progressFill.style.width = "0%";
+    progressLabel.textContent = "0 / ?";
+    spinner.style.display = "none";
+    statusText.textContent = "Select a count to start scanning";
+
+    // Deactivate all buttons on the new tab
+    clearButtonStates(tab);
+
+    // Show empty state — no API calls until user clicks a scan button
+    emptyState.style.display = "";
+    resultsTable.style.display = "none";
+  }
+
+  function clearButtonStates(tab) {
+    const prefix = `btn-${tab}-`;
+    document.querySelectorAll(`[id^="${prefix}"]`).forEach(b => b.classList.remove("active"));
+  }
+
+  // ==========================================================================
+  // Table rendering
+  // ==========================================================================
+
+  function upsertRow(rowMap, result) {
+    let tr = rowMap.get(result.symbol);
+    if (!tr) {
+      tr = document.createElement("tr");
+      rowMap.set(result.symbol, tr);
+      tbody.appendChild(tr);
+    }
+
+    const sym  = displaySymbol(result);
+    const link = assetLink(result);
+
+    if (result.error) {
+      tr.innerHTML = `
+        <td class="rank">—</td>
+        <td class="symbol"><a href="${link}" target="_blank" rel="noopener">${sym}</a></td>
+        <td colspan="5"><span class="badge-error">${result.error}</span></td>
+      `;
+      return;
+    }
+
+    const ltPct  = result.longTerm.totalChange;
+    const recPct = result.recent.totalChange;
+
+    tr.innerHTML = `
+      <td class="rank">—</td>
+      <td class="symbol"><a href="${link}" target="_blank" rel="noopener">${sym}</a></td>
+      <td class="right score ${scoreClass(result.score)}">${result.score.toFixed(2)}</td>
+      <td class="right ${trendClass(ltPct)}">${trendArrow(ltPct)}${fmt(ltPct)}</td>
+      <td class="right r-value">${result.longTerm.r.toFixed(2)}</td>
+      <td class="right ${trendClass(recPct)}">${trendArrow(recPct)}${fmt(recPct)}</td>
+      <td class="right r-value">${result.recent.r.toFixed(2)}</td>
+    `;
+  }
+
+  function resortTable() {
+    const rows = [...tbody.querySelectorAll("tr")]
+      .map(tr => {
+        const scoreEl = tr.querySelector(".score");
+        return { tr, score: scoreEl ? parseFloat(scoreEl.textContent) || 0 : -Infinity };
+      })
+      .sort((a, b) => b.score - a.score);
+
+    rows.forEach(({ tr }, idx) => {
+      tbody.appendChild(tr);
+      const rankCell = tr.querySelector(".rank");
+      if (rankCell) rankCell.textContent = tr.querySelector(".badge-error") ? "—" : idx + 1;
+    });
+  }
+
+  // ==========================================================================
+  // Progress bar
+  // ==========================================================================
+
+  function setProgress(done, total, isDone, lastSymbol) {
+    if (total) {
+      progressFill.style.width  = `${Math.round((done / total) * 100)}%`;
+      progressLabel.textContent = `${done} / ${total}`;
+    } else {
+      progressLabel.textContent = `${done} / ?`;
+    }
+
+    if (isDone) {
+      spinner.style.display  = "none";
+      statusText.textContent = `Done — ${total} assets evaluated`;
+    } else {
+      spinner.style.display  = "";
+      statusText.textContent = lastSymbol
+        ? `Scoring ${displaySymbol({ symbol: lastSymbol, type: activeTab })}...`
+        : "Connecting...";
+    }
+  }
+
+  // ==========================================================================
+  // Main scan function
+  // Called when a count button is clicked. Cancels any existing scan first.
+  // Stock APIs are never touched when type="crypto", and vice versa.
+  // ==========================================================================
+
+  function startScan(type, source) {
+    // Activate the clicked button, deactivate siblings
+    clearButtonStates(type);
+    const btnId = source === "dynamic"
+      ? `btn-${type}-dynamic`
+      : `btn-${type}-${source}`;
+    const btn = document.getElementById(btnId);
+    if (btn) btn.classList.add("active");
+
+    // Cancel any in-progress scan
+    if (activeEs) { activeEs.close(); activeEs = null; }
+
+    // Reset UI
+    tbody.innerHTML          = "";
+    progressFill.style.width = "0%";
+    emptyState.style.display   = "none";
+    resultsTable.style.display = "";
+    setProgress(0, null, false, null);
+
+    const rowMap = new Map();
+    let done  = 0;
+    let total = null;
+
+    const url = source === "dynamic"
+      ? `/scores?type=${type}&source=dynamic`
+      : `/scores?type=${type}&count=${source}`;
+
+    const es  = new EventSource(url);
+    activeEs  = es;
+
+    es.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+
+      if (data.done) {
+        total = data.total;
+        setProgress(done, total, true, null);
+        es.close();
+        activeEs = null;
+        return;
+      }
+
+      // Fatal server error has no symbol field.
+      // Per-asset failures have both symbol and error — show in table, don't stop.
+      if (data.error && !data.symbol) {
+        statusText.textContent = `Server error: ${data.error}`;
+        spinner.style.display  = "none";
+        es.close();
+        activeEs = null;
+        return;
+      }
+
+      done++;
+      upsertRow(rowMap, data);
+      resortTable();
+      setProgress(done, total, false, data.symbol);
+    };
+
+    es.onerror = () => {
+      statusText.textContent = "Connection lost. Is the server running?";
+      spinner.style.display  = "none";
+      es.close();
+      activeEs = null;
+    };
+  }
+
+  // ==========================================================================
+  // Boot — auto-start crypto scan with 10 coins
+  // ==========================================================================
+  startScan("crypto", 10);
+</script>
+</body>
+</html>
