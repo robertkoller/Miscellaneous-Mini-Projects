@@ -18,7 +18,7 @@ The idea is to surface assets that may have bottomed out and started recovering 
 ## Project structure
 
 ```
-tradingAlgorithm/
+Trading_Algorithm/
 ├── client/
 │   ├── index.html          Frontend UI (served by Express)
 │   ├── getPrices.js        Fetches historical crypto candles from Coinbase
@@ -36,7 +36,7 @@ tradingAlgorithm/
 Requires Node.js 18 or later (for built-in `fetch`).
 
 ```bash
-cd tradingAlgorithm/server
+cd Trading_Algorithm/server
 npm install
 npm start
 ```
