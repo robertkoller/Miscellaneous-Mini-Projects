@@ -50,6 +50,7 @@ function shouldSkipNode(node) {
   let el = node.parentElement;
   while (el) {
     if (SKIP_TAGS.has(el.tagName)) return true;
+    if (el.isContentEditable) return true;
     el = el.parentElement;
   }
   return false;
