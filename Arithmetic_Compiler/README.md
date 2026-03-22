@@ -2,7 +2,7 @@
 
 A calculator that works by parsing an expression into an AST (Abstract Syntax Tree) and then evaluating it. It's like a calculator but cooler.
 
-I made this project to practice recursion, tree data structures, and to build something in both C++ and Java.
+I made this project to practice recursion, tree data structures, and to build something in Java.
 
 ---
 
