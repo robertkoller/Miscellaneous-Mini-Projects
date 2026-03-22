@@ -9,14 +9,18 @@
 <body>
   <div class="header">
     <span class="logo">Swapsona</span>
-    <label class="toggle" title="Enable / Disable">
-      <input type="checkbox" id="enableToggle" checked />
-      <span class="slider"></span>
-    </label>
+    <div class="header-controls">
+      <button class="dark-btn" id="darkToggle" title="Toggle dark mode">☽</button>
+      <label class="toggle" title="Enable / Disable">
+        <input type="checkbox" id="enableToggle" checked />
+        <span class="slider"></span>
+      </label>
+    </div>
   </div>
 
+  <div class="profile-bar" id="profileBar"></div>
+
   <div class="rules-container" id="rulesList">
-    <!-- Rule rows injected by popup.js -->
   </div>
 
   <button class="add-btn" id="addRuleBtn">+ Add swap</button>

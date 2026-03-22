@@ -147,7 +147,46 @@ chrome.storage.sync.get(["rules", "enabled"], (data) => {
   run();
 });
 
-chrome.runtime.onMessage.addListener((message) => {
+const COMMON_WORDS = new Set([
+  "the","a","an","and","or","but","in","on","at","to","for","of","with","by",
+  "is","was","are","were","be","been","has","have","had","will","would","could",
+  "should","may","might","do","did","does","not","no","so","as","if","this",
+  "that","it","he","she","they","we","you","his","her","their","our","your",
+  "its","said","says","from","into","than","then","when","who","which","what",
+  "about","after","before","more","also","just","only","very","even","still",
+]);
+
+// Scans the page text and returns the most frequently occurring word after the given name.
+// Uses original (pre-swap) text from the originalValues map so swapped pages still work.
+function findMostFrequentFollower(firstName) {
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null);
+  let rawText = "";
+  let node;
+  while ((node = walker.nextNode())) {
+    rawText += (originalValues.get(node) ?? node.nodeValue) + " ";
+  }
+  const words = rawText.split(/\s+/);
+  const lower = firstName.toLowerCase();
+  const freq = {};
+  for (let i = 0; i < words.length - 1; i++) {
+    const clean = words[i].replace(/[^a-zA-Z'-]/g, "");
+    if (clean.toLowerCase() !== lower) continue;
+    const next = words[i + 1].replace(/[^a-zA-Z'-]/g, "");
+    if (next.length >= 2 && !COMMON_WORDS.has(next.toLowerCase())) {
+      freq[next] = (freq[next] || 0) + 1;
+    }
+  }
+  const entries = Object.entries(freq);
+  if (entries.length === 0) return null;
+  return entries.sort((a, b) => b[1] - a[1])[0][0];
+}
+
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (message.type === "FIND_FOLLOWING_WORD") {
+    sendResponse({ word: findMostFrequentFollower(message.firstName) });
+    return;
+  }
+
   if (message.type === "RULES_UPDATED") {
     rules = message.rules || [];
     enabled = message.enabled !== false;
