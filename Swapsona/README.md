@@ -1,0 +1,1 @@
+Swapsona is designed to swap the names in a text with your given chosen name.
