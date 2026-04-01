@@ -8,7 +8,9 @@ I made this project to practice recursion, tree data structures, and to build so
 
 ## How it works
 
-**Parsing** — The expression string is recursively split at the lowest-precedence operator at the outermost level (not inside parentheses). This is the operator that becomes the root of the subtree, with the left and right substrings becoming its children. Repeating this bottom-up builds the full AST.
+**Reformatting** — Before parsing, the expression is preprocessed: whitespace is stripped, implicit multiplication is inserted (e.g. `3(2+4)` → `3*(2+4)`), and unary minus is rewritten as a subtraction from zero (e.g. `-5` → `(0-5)`, `-2^2` → `(0-2^2)`).
+
+**Parsing** — The reformatted string is recursively split at the lowest-precedence operator at the outermost level (not inside parentheses). That operator becomes the root of the subtree, with the left and right substrings becoming its children. Repeating this builds the full AST. Indices into the original string are used throughout to avoid O(n²) substring allocation.
 
 **Operator precedence** (lowest to highest):
 1. `+` `-`
@@ -49,13 +51,15 @@ Result: 11.0
 
 ### Supported syntax
 
-| Syntax | Example |
-|--------|---------|
-| Integers | `3 + 5` |
-| Decimals | `3.14 * 2` |
-| Operators | `+ - * / ^` |
-| Parentheses | `(1 + 2) * 3` |
-| Nested expressions | `3 + 4 * 2 / (1 - 5) ^ 2 ^ 3` |
+| Syntax | Example | Notes |
+|--------|---------|-------|
+| Integers | `3 + 5` | |
+| Decimals | `3.14 * 2` | Digit required on both sides of `.` |
+| Operators | `+ - * / ^` | |
+| Parentheses | `(1 + 2) * 3` | |
+| Implicit multiplication | `3(2+4)`, `(1+2)(3+4)` | `*` inserted automatically |
+| Unary minus | `-5`, `-2^2`, `-(3+2)` | Rewired to `(0-...)` before parsing |
+| Nested expressions | `3 + 4 * 2 / (1 - 5) ^ 2 ^ 3` | |
 
 ### Special commands
 
@@ -85,22 +89,27 @@ The `print` command draws the tree. For `3 + 4 * 2 / (1 - 5) ^ 2 ^ 3`:
 
 ---
 
+## Running the tests
+
+```
+cd JavaVers
+javac *.java
+java CompilerTest
+```
+
+Tests cover basic operations, operator precedence, parentheses, implicit multiplication, unary minus, decimals, and input validation.
+
+---
+
 ## Project structure
 
 ```
 JavaVers/
-  Compiler.java     -- entry point, REPL loop, tree printing
-  Parser.java       -- builds the AST from an expression string
+  Compiler.java     -- entry point, REPL loop, input validation, tree printing
+  Parser.java       -- expression reformatting and AST construction
   Evaluator.java    -- walks the AST and computes the result
   Node.java         -- abstract base class for tree nodes
   OperatorNode.java -- node holding an operator and two children
   NumberNode.java   -- leaf node holding a numeric value
+  CompilerTest.java -- test suite
 ```
-
----
-
-## Limitations
-
-- No support for unary minus (write `(0 - 2)` instead of `-2`)
-- No support for implicit multiplication (e.g. `2(3+4)` won't work)
-- Numbers must have digits on both sides of `.` (e.g. `0.5`, not `.5`)

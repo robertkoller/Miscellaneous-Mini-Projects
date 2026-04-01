@@ -89,13 +89,27 @@ public class Compiler {
     // Check for invalid characters in the expression
     // Returns index of first invalid character, or -1 if all characters are valid
     public static int validExpression(String expression) {
+        int depth = 0;
+        int lastOpenParen = -1;
         for (int x = 0; x < expression.length(); x++) {
             char c = expression.charAt(x);
-            if (!Character.isDigit(c) && "+-*/^() .".indexOf(c) == -1) {
+            if (c == '(') {
+                depth++;
+                lastOpenParen = x;
+            } else if (c == ')') {
+                depth--;
+                if (depth < 0) {
+                    return x;
+                }
+            } else if (!Character.isDigit(c) && "+-*/^() .".indexOf(c) == -1) {
                 return x;
             }
         }
 
+        // Unclosed parentheses
+        if (depth != 0) {
+            return lastOpenParen;
+        }
         return -1;
     }
 
