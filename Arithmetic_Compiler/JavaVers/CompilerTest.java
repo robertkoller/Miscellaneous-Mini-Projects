@@ -109,9 +109,7 @@ public class CompilerTest {
     // evaluates the expression and checks against expected result, printing pass/fail
     static void eval(String expr, double expected) {
         try {
-            Parser parser = new Parser();
-            Evaluator evaluator = new Evaluator();
-            double result = evaluator.evaluate(parser.buildTree(expr));
+            double result = Evaluator.evaluate(Parser.buildTree(expr));
             if (Math.abs(result - expected) < EPSILON) {
                 pass(expr + " = " + expected);
             } else {

@@ -36,9 +36,7 @@ public class Compiler {
             }
 
             else if (expression.equalsIgnoreCase("print")) {
-                Parser parser = new Parser();
-                Node ast = parser.buildTree(savedExpression);
-                Compiler.printTree(ast);
+                Compiler.printTree(Parser.buildTree(savedExpression));
                 continue;
             }
 
@@ -78,12 +76,9 @@ public class Compiler {
 
     // Method to evaluate the expression and print the result
     public static void evaluateExpression(String expression) {
-        Parser parser = new Parser();
-        Evaluator evaluator = new Evaluator();
-        Node ast = parser.buildTree(expression);
-        double result = evaluator.evaluate(ast);
+        Node ast = Parser.buildTree(expression);
+        double result = Evaluator.evaluate(ast);
         System.out.println("Result: " + result);
-
     }
 
     // Check for invalid characters in the expression

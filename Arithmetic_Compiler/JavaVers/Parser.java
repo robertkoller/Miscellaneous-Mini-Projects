@@ -2,13 +2,13 @@
 public class Parser {
 
     // Main method to build the AST from the input expression
-    public Node buildTree(String expression) {
+    public static Node buildTree(String expression) {
         expression = reformatExpression(expression);
         return buildTreeRecursive(expression, 0, expression.length());
     }
 
     // Recursive method to build the AST using start/end indices to avoid O(n²) substring creation
-    private Node buildTreeRecursive(String expression, int start, int end) {
+    private static Node buildTreeRecursive(String expression, int start, int end) {
         int opIndex = findOperatorIndex(expression, start, end);
         if (opIndex == -1) {
             if (expression.charAt(start) == '(' && expression.charAt(end - 1) == ')') {
@@ -25,7 +25,7 @@ public class Parser {
     }
 
     // Method to find the index of the operator with the lowest precedence that is not inside parentheses
-    private int findOperatorIndex(String expression, int start, int end) {
+    private static int findOperatorIndex(String expression, int start, int end) {
         int depth = 0;
         int lastOpIndex = -1;
         boolean foundMulDiv = false;
@@ -51,7 +51,7 @@ public class Parser {
     }
 
     // Method to reformat the expression using stringbuilder cuz stringbuilder more efficient
-    private String reformatExpression(String expression) {
+    private static String reformatExpression(String expression) {
         StringBuilder sb = new StringBuilder(expression.replaceAll("\\s", ""));
         for (int x = 0; x < sb.length() - 1; x++) {
             char c1 = sb.charAt(x);
@@ -94,7 +94,7 @@ public class Parser {
 
     // Advances end past any ^exponent chains so unary minus wraps the full power expression
     // -2^3 becomes (0-2^3), not (0-2)^3
-    private int consumeExponents(StringBuilder sb, int end) {
+    private static int consumeExponents(StringBuilder sb, int end) {
         while (end < sb.length() && sb.charAt(end) == '^') {
             end++; // skip ^
             if (end < sb.length() && sb.charAt(end) == '(') {
@@ -114,7 +114,7 @@ public class Parser {
     }
 
     // Helper method to check if a character is an operator or an open parenthesis
-    private boolean isOperatorOrOpenParen(char c) {
+    private static boolean isOperatorOrOpenParen(char c) {
         return c == '+' || c == '-' || c == '*' || c == '/' || c == '^' || c == '(';
     }
 }
