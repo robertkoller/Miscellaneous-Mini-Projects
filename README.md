@@ -13,3 +13,6 @@ Building a compiler for basic strings of math, I wanted to practice working with
 
 ## Swapsona
 Swapsona is a chrome extension which swaps a word on the page with another word of your choosing. I created it to help enhance storytelling and with the idea that user's can immerse themselves in a story.
+
+## SSBU Scraper
+I've been playing lots of ssbu with my dorm mates recently and I was curious the relationship between a character's average matchup scores, and their perceved rank on the tierlists so I decided to practice my scraping skills and code it out.
