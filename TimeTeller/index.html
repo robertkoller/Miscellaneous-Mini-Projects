@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Time Teller</title>
+  <style>
+    .confetti-piece {
+      position: fixed;
+      width: 10px;
+      height: 10px;
+      pointer-events: none;
+      z-index: 9999;
+    }
+  </style>
+</head>
+
+<body style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; margin:0">
+  <p id="time"></p>
+  <button onclick="fetchNextMinute()">Next Minute</button>
+  <br><br>
+  <progress id="bar" max="100" value="0" style="display:none; width:200px"></progress>
+  <p id="loading-msg" style="font-size:0.8em; color:gray; min-height:1.2em"></p>
+  <p id="result" style="transition: opacity 0.5s"></p>
+
+  <script>
+    const LOADING_MSGS = [
+      "computing derivative of time...",
+      "inverting the space-time matrix...",
+      "asking my grandma what time it is...",
+      "solving for x (x = next minute)...",
+      "performing a discrete fourier transform on your clock...",
+      "consulting the ancient scrolls...",
+      "dividing by zero (oops, retrying)...",
+      "integrating from now to later...",
+      "downloading more RAM to store the time...",
+      "running time.exe... please wait...",
+      "applying bayesian inference to your watch...",
+      "negotiating with the time continuum...",
+      "defragmenting the calendar...",
+      "computing the eigenvalues of 60 seconds...",
+      "asking jeeves...",
+    ];
+
+    function formatTime(date) {
+      return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    }
+
+    const FADE_OUT = true;
+
+    let showingNext = false;
+    let shownNextStr = null;
+
+    // update the time
+    function tick() {
+      const now = new Date();
+      const next = new Date(now.getTime() + 60_000);
+      const nextStr = formatTime(next);
+      document.getElementById("time").textContent = "Current time: " + formatTime(now);
+      if (showingNext) {
+        const result = document.getElementById("result");
+        if (nextStr !== shownNextStr) {
+          // I want to cross off if there is a time overlap from when we clicked button
+          result.innerHTML = "Next minute: <s>" + shownNextStr + "</s> " + nextStr;
+        } else {
+          result.textContent = "Next minute: " + nextStr;
+        }
+      }
+    }
+
+    tick();
+    setInterval(tick, 1000);
+
+    // ai confetti generator
+    function spawnConfetti(cx, cy) {
+      const colors = ["red", "orange", "gold", "lime", "cyan", "violet", "hotpink", "blue"];
+      for (let i = 0; i < 60; i++) {
+        const el = document.createElement("div");
+        el.className = "confetti-piece";
+        el.style.background = colors[Math.floor(Math.random() * colors.length)];
+        el.style.left = cx + "px";
+        el.style.top = cy + "px";
+        el.style.borderRadius = Math.random() > 0.5 ? "50%" : "0";
+        el.style.width = (6 + Math.random() * 8) + "px";
+        el.style.height = (6 + Math.random() * 8) + "px";
+        document.body.appendChild(el);
+
+        const angle = Math.random() * 2 * Math.PI;
+        const dist = 80 + Math.random() * 160;
+        const dx = Math.cos(angle) * dist;
+        const dy = Math.sin(angle) * dist;
+        const rot = (Math.random() - 0.5) * 720;
+        const dur = 600 + Math.random() * 600;
+
+        el.animate([
+          { transform: "translate(0,0) rotate(0deg)", opacity: 1 },
+          { transform: `translate(${dx}px, ${dy}px) rotate(${rot}deg)`, opacity: 0 }
+        ], { duration: dur, easing: "ease-out", fill: "forwards" })
+          .onfinish = () => el.remove();
+      }
+    }
+
+    // this is the ragebait method which makes the bar jump around
+    function choppyBar(bar, onDone) {
+      let progress = 0;
+      let msgIdx = Math.floor(Math.random() * LOADING_MSGS.length);
+      const msgEl = document.getElementById("loading-msg");
+      msgEl.textContent = LOADING_MSGS[msgIdx];
+
+      function step() {
+        // randomly jump forward a lot, a little, or even stall/go back
+        const r = Math.random();
+        if (r < 0.1) progress -= 4 + Math.random() * 8;  // go backwards - hehehehaw
+        else if (r < 0.35) progress += 0;                        // stall
+        else if (r < 0.75) progress += 0.5 + Math.random() * 2; // crawl
+        else progress += 3 + Math.random() * 6;   // fast forward
+
+        progress = Math.max(0, Math.min(progress, 99));
+        bar.value = Math.floor(progress);
+
+        // randomly swap loading message
+        if (Math.random() < 0.15) {
+          msgIdx = (msgIdx + 1) % LOADING_MSGS.length;
+          msgEl.textContent = LOADING_MSGS[msgIdx];
+        }
+
+        if (progress < 99) {
+          setTimeout(step, 80 + Math.random() * 300);  // choppy uneven timing
+        } else {
+          bar.value = 100;
+          onDone();
+        }
+      }
+
+      step();
+    }
+
+    // main stuff
+    function fetchNextMinute() {
+      const bar = document.getElementById("bar");
+      const result = document.getElementById("result");
+      const msgEl = document.getElementById("loading-msg");
+
+      showingNext = false;
+      bar.style.display = "block";
+      bar.value = 0;
+      result.textContent = "";
+      result.style.opacity = "0";
+
+      choppyBar(bar, () => {
+        setTimeout(() => {
+          bar.style.display = "none";
+          msgEl.textContent = "";
+          showingNext = true;
+          shownNextStr = formatTime(new Date(Date.now() + 60_000));
+          result.style.opacity = "1";
+          tick();
+
+          // confetti centered on result element
+          const rect = document.getElementById("result").getBoundingClientRect();
+          spawnConfetti(rect.left + rect.width / 2, rect.top + rect.height / 2);
+
+          if (FADE_OUT) {
+            setTimeout(() => {
+              result.style.opacity = "0";
+              setTimeout(() => { showingNext = false; result.innerHTML = ""; }, 500);
+            }, 2000);
+          }
+        }, 100);
+      });
+    }
+  </script>
+</body>
+
+</html>
