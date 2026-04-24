@@ -185,39 +185,31 @@ function hasMoves(direction) {
   return { mergeable: false, moveable: false };
 }
 
+// Convert the live piece-object board to 4 packed 16-bit row integers
+function boardToRows() {
+  return board.map(row => {
+    let r = 0;
+    for (let c = 0; c < 4; c++) {
+      const v = row[c] ? row[c].value : 0;
+      if (v > 0) r |= (Math.log2(v) << (c * 4));
+    }
+    return r;
+  });
+}
+
 function aiStep() {
-  const moves = ["left", "right", "up", "down"];
-  const left = hasMoves("left");
-  const right = hasMoves("right");
-  const up = hasMoves("up");
-  const down = hasMoves("down");
-  if (!(left.mergeable || left.moveable) && !(down.mergeable || down.moveable)) {
-    if (up.mergeable || up.moveable) {
-      move("up");
-      if (hasMoves("down").mergeable || hasMoves("down").moveable) {
-        move("down");
-      }
-      else if (left.mergeable || left.moveable) {
-        move("left");
-      }
-    } else {
-      move("right");
-      move("left");
-    }
-    return;
+  const rows = boardToRows();
+
+  let bestMove = null, bestScore = -Infinity;
+
+  for (const [dir, fn] of [['left', applyLeft], ['down', applyDown], ['right', applyRight], ['up', applyUp]]) {
+    const nb = fn(rows);
+    if (rowsEqual(nb, rows)) continue;
+    const s = expectimax(nb, SEARCH_DEPTH - 1, false);
+    if (s > bestScore) { bestScore = s; bestMove = dir; }
   }
-  else {
-    if (down.mergeable) {
-      move("down");
-      return;
-    }
-    else {
-      move("left");
-      return;
-    }
-  }
-  //const dir = moves[Math.floor(Math.random() * moves.length)];
-  move(dir);
+
+  if (bestMove) move(bestMove);
 }
 
 function reevaluateBoard() {
