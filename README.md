@@ -17,5 +17,8 @@ Swapsona is a chrome extension which swaps a word on the page with another word 
 ## SSBU Scraper
 I've been playing lots of ssbu with my dorm mates recently and I was curious the relationship between a character's average matchup scores, and their perceved rank on the tierlists so I decided to practice my scraping skills and code it out.
 
+## AdaptiSearch
+An adaptive search bar that I can use in any future projects made fast and efficient using data structures and algorithms.
+
 ## Time Teller
 I was bored so I made this. It tells the future time
