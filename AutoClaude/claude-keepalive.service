@@ -1,0 +1,20 @@
+[Unit]
+Description=Claude Code session keepalive
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root
+
+Environment="PATH=/usr/local/bin:/usr/bin:/bin:/root/.npm-global/bin"
+
+ExecStart=/root/AutoClaude/claude_keepalive.sh
+Restart=on-failure
+RestartSec=30
+
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

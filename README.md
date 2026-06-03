@@ -20,5 +20,8 @@ I've been playing lots of ssbu with my dorm mates recently and I was curious the
 ## AdaptiSearch
 An adaptive search bar that I can use in any future projects made fast and efficient using data structures and algorithms.
 
+## AutoClaude
+I was tired of waiting for sessions to end in Claude so I decided to make a script which starts your session automatically to let you use your weekly tokens to their fullest potential
+
 ## Time Teller
 I was bored so I made this. It tells the future time
