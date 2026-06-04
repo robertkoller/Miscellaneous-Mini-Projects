@@ -34,12 +34,19 @@ log() {
 }
 
 ping_claude() {
-  # Send the shortest possible message — single character "." 
-  # --print-output: show response; --no-auto-continue: don't keep going; -p: prompt
-  if claude -p "." --no-auto-continue 2>/dev/null | tail -1 >> "$LOG_FILE" 2>&1; then
+  local output
+  local exitcode
+
+  output=$(claude -p "hi" 2>&1)
+  exitcode=$?
+
+  echo "$output" >> "$LOG_FILE"
+
+  if [[ $exitcode -eq 0 ]]; then
     log "✓ Ping sent successfully (count: $COUNT)"
   else
-    log "✗ Ping failed — Claude Code may not be installed or authenticated"
+    log "✗ Ping failed (exit code: $exitcode)"
+    log "Error: $output"
   fi
 }
 
