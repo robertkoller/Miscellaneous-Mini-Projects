@@ -1,12 +1,14 @@
 # SSBU Scraper
 
-Scrapes the Super Smash Bros. Ultimate tier list from [ssbwiki.com](https://www.ssbwiki.com/Tier_list) and community matchup ratings from [eventhubs.com](https://www.eventhubs.com), then compares where the panel placed each character against how the community rates their actual matchups.
+Scrapes the Super Smash Bros. Ultimate tier list from [ssbwiki.com](https://www.ssbwiki.com/Tier_list) and individual character matchup ratings from [eventhubs.com](https://www.eventhubs.com), then provides a React app to explore and compare character matchups.
 
-## What it does
+## Files
 
-1. **scraper.py** — Fetches the ssbwiki tier list (rank, tier label, tier score) for all ~84 characters, then hits eventhubs for each character's matchup chart (win/loss/even counts and average matchup score). Outputs a summary table to stdout and saves `results.csv`.
-
-2. **graph.py** — Reads `results.csv` and plots tier rank/score (X-axis) vs. matchup average (Y-axis) with a trend line. Characters above the line have better matchups than their tier suggests (underrated); below means the opposite (overrated). Saves `graph.png` and opens it automatically on Mac.
+| File | Purpose |
+|------|---------|
+| `scraper.py` | Scrapes tier list + all individual matchup scores, outputs `results.csv` and `matchups.json` |
+| `graph.py` | Reads `results.csv` and plots tier rank/score vs matchup average with a trend line |
+| `app/` | React app for exploring and comparing character matchups |
 
 ## Setup
 
@@ -16,43 +18,80 @@ python3 -m venv venv
 venv/bin/pip install requests beautifulsoup4 matplotlib numpy
 ```
 
-## Usage
+## Running the scraper
 
-**Run the scraper** (takes a few minutes due to rate limiting):
+Takes ~2–3 minutes due to rate limiting between eventhubs requests:
+
 ```bash
 venv/bin/python scraper.py
 ```
 
-**Generate the graph** from existing `results.csv`:
+Outputs:
+- `results.csv` — one row per character: rank, name, tier, tier score, matchup average, favorable/unfavorable/even counts
+- `matchups.json` — full data including every individual matchup score per character, used by the React app
+
+After scraping, copy the JSON into the app:
+
+```bash
+cp matchups.json app/src/data/matchups.json
+```
+
+## React app
+
+```bash
+cd app
+npm install
+npm run dev
+```
+
+Opens at `http://localhost:5173`. Two modes:
+
+**Single character** — search any character and see:
+- Matchup average, median, standard deviation
+- Best and worst individual matchup
+- All matchups ranked and grouped by category (strong advantage → strong disadvantage)
+
+**Compare** — pick two characters and see:
+- Head-to-head score from each character's perspective
+- Where each character ranks in the other's matchup chart (rank + percentile)
+- Both full matchup lists side by side with the opponent highlighted
+
+Matchup categories:
+| Range | Label |
+|-------|-------|
+| ≥ 6.2 | Strong Advantage |
+| 5.6–6.2 | Decent Advantage |
+| 5.2–5.6 | Small Advantage |
+| 4.8–5.2 | Even |
+| 4.4–4.8 | Small Disadvantage |
+| 3.8–4.4 | Decent Disadvantage |
+| ≤ 3.8 | Strong Disadvantage |
+
+## Generating the graph
+
 ```bash
 venv/bin/python graph.py
 ```
 
-## Graph options
-
-At the top of `graph.py`:
+Toggle at the top of `graph.py`:
 
 ```python
-USE_RANK = False  # True  → X-axis is tier rank (1=best on right, 84=worst on left)
+USE_RANK = False  # True  → X-axis is tier rank (1=best, 84=worst)
                   # False → X-axis is tier score (continuous float from ssbwiki panel)
 ```
 
-Tier score is more granular — it shows how clustered or spread out characters are within tiers. Rank treats every step as equal distance.
-
-## Output
-
-- `results.csv` — one row per character with: rank, name, tier, tier score, matchup average, favorable/unfavorable/even matchup counts, and any scrape errors
-- `graph.png` — scatter plot with trend line and labeled outliers
+Characters above the trend line have better matchups than their tier suggests (underrated); below means overrated. Saves `graph.png` and opens it on Mac automatically.
 
 ## Data sources
 
 | Source | What it provides |
 |--------|-----------------|
 | ssbwiki.com/Tier_list | Panel tier list: rank, tier label (S+, A-, etc.), tier score |
-| eventhubs.com/tiers/ssbu/character/\<slug\>/ | Community matchup ratings (avg score out of 10, vote counts) |
+| eventhubs.com/tiers/ssbu/character/\<slug\>/ | Community matchup ratings — all individual opponent scores (avg out of 10) across three sections: favorable, even, unfavorable |
+| media.eventhubs.com/images/characters/ssbu/ | Character portrait images |
 
 ## Notes
 
-- Richter shares a page with Simon on eventhubs; Dark Pit shares with Pit; Dark Samus shares with Samus; Daisy shares with Peach. Their matchup data reflects the combined page.
-- Some characters may have scrape errors (timeouts, missing pages) — these show up in the `matchup_error` column and are excluded from the graph. I didnt want to rerun the scrapers, even just for these because I thought it would be cool to keep as a sign of the limitations of this project
+- Richter shares a page with Simon on eventhubs; Dark Pit with Pit; Dark Samus with Samus; Daisy with Peach. Their matchup data reflects the combined page.
 - The 1.5-second delay between eventhubs requests is intentional to avoid rate limiting.
+- Some characters may have scrape errors (timeouts, missing pages) — these show up in the `matchup_error` field and are excluded from the graph.

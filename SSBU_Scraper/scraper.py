@@ -268,22 +268,27 @@ def scrape_matchup(entry: TierEntry) -> MatchupResult:
 
     try:
         soup = fetch(url)
-        table = soup.find("table", class_="tierstable")
-        if not table:
+        tables = soup.find_all("table", class_="tierstable")
+        if not tables:
             result.error = "no tierstable on page"
             return result
 
-        for row in table.find_all("tr", class_=["odd", "even"]):
-            cells = row.find_all("td", class_="tierstdnorm")
-            if len(cells) < 4:
-                continue
-            opponent = cells[1].get_text(strip=True)
-            try:
-                votes = int(cells[2].get_text(strip=True))
-                avg   = float(cells[3].get_text(strip=True))
-            except ValueError:
-                continue
-            result.matchups.append(Matchup(opponent=opponent, avg_score=avg, votes=votes))
+        for table in tables:
+            for row in table.find_all("tr", class_=["odd", "even"]):
+                cells = row.find_all("td", class_="tierstdnorm")
+                if len(cells) < 4:
+                    continue
+                opponent = cells[1].get_text(strip=True)
+                try:
+                    votes = int(cells[2].get_text(strip=True))
+                    avg   = float(cells[3].get_text(strip=True))
+                except ValueError:
+                    continue
+                # Skip totals rows — eventhubs puts a summary row (count + sum) at the
+                # bottom of each section table with the same odd/even class as real rows
+                if opponent.strip().isdigit() or not (0 <= avg <= 10):
+                    continue
+                result.matchups.append(Matchup(opponent=opponent, avg_score=avg, votes=votes))
 
     except requests.HTTPError as exc:
         result.error = f"HTTP {exc.response.status_code}"
@@ -363,6 +368,34 @@ def compare_and_output(tier_data: list[TierEntry], matchup_data: list[MatchupRes
         writer.writeheader()
         writer.writerows(rows)
     print(f"\n  Results saved → {csv_path}")
+
+    # Export full matchup data (including individual matchups) as JSON for the React app
+    import json, datetime
+    json_rows = []
+    for entry in tier_data:
+        mu = matchup_map.get(entry.name.lower())
+        img_url = f"https://media.eventhubs.com/images/characters/ssbu/{entry.slug}.png"
+        json_rows.append({
+            "rank":          entry.rank,
+            "name":          entry.name,
+            "tier":          entry.tier,
+            "tier_score":    entry.score,
+            "image":         img_url,
+            "matchup_avg":   mu.avg       if mu and not mu.error else None,
+            "favorable":     mu.favorable if mu and not mu.error else None,
+            "unfavorable":   mu.unfavorable if mu and not mu.error else None,
+            "even":          mu.even      if mu and not mu.error else None,
+            "matchup_error": mu.error     if mu and mu.error else "",
+            "matchups": [
+                {"opponent": m.opponent, "score": m.avg_score, "votes": m.votes}
+                for m in (mu.matchups if mu and not mu.error else [])
+                if m.votes > 0
+            ],
+        })
+    json_path = "matchups.json"
+    with open(json_path, "w", encoding="utf-8") as f:
+        json.dump({"generated": datetime.date.today().isoformat(), "characters": json_rows}, f, indent=2)
+    print(f"  Matchup JSON saved → {json_path}")
 
 # main stuff
 def main():
