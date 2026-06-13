@@ -1,6 +1,21 @@
 .DS_Store
-readmecreator/
-VDay26
 .vscode
-#/VDay26/code/EditingGifs
-#/VDay26/code/public/gif
+readmecreator/
+
+# Swift build artifacts
+.build/
+*.o
+*.d
+
+# Node dependencies and build output
+node_modules/
+dist/
+
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# VDay26 (personal project, kept local)
+VDay26/
