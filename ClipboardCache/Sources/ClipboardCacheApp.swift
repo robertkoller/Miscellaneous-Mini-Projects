@@ -8,6 +8,6 @@ struct ClipboardCacheApp: App {
         }
         .windowStyle(.titleBar)
         .windowToolbarStyle(.unified)
-        .defaultSize(width: 340, height: 520)
+        .defaultSize(width: 340, height: 580)
     }
 }
