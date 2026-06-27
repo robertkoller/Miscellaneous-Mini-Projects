@@ -11,6 +11,13 @@ struct ClipEntry: Identifiable {
 final class ClipManager: ObservableObject {
     @Published var entries: [ClipEntry] = []
     @Published var namingEnabled: Bool = false
+    @Published var debugLines: [String] = []
+
+    func log(_ message: String) {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm:ss.SSS"
+        debugLines.append("[\(formatter.string(from: Date()))] \(message)")
+    }
 
     func autoName(for content: String) -> String {
         let trimmed = content.trimmingCharacters(in: .whitespacesAndNewlines)

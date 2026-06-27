@@ -37,6 +37,12 @@ struct ControlView: View {
                     .font(.caption)
                     .foregroundStyle(.red)
                     .fixedSize(horizontal: false, vertical: true)
+                Button("Open Screen Recording Settings") {
+                    NSWorkspace.shared.open(
+                        URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture")!
+                    )
+                }
+                .font(.caption)
             }
 
             Divider()

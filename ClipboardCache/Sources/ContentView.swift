@@ -2,11 +2,12 @@ import SwiftUI
 import AppKit
 
 struct ContentView: View {
-    @StateObject private var manager = ClipManager()
+    @EnvironmentObject private var manager: ClipManager
     @State private var alwaysOnTop = false
     @State private var showingNamingSheet = false
     @State private var pendingClipContent = ""
     @State private var showingClearConfirmation = false
+    @State private var debugVisible = true
 
     var body: some View {
         VStack(spacing: 0) {
@@ -19,6 +20,58 @@ struct ContentView: View {
             }
         }
         .frame(minWidth: 280, minHeight: 300)
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if !manager.debugLines.isEmpty {
+                Divider()
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        Text("Debug")
+                            .font(.caption)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Button(debugVisible ? "Hide" : "Show") { debugVisible.toggle() }
+                            .font(.caption)
+                            .buttonStyle(.plain)
+                            .foregroundStyle(.secondary)
+                        Button("Copy") {
+                            NSPasteboard.general.clearContents()
+                            NSPasteboard.general.setString(manager.debugLines.joined(separator: "\n"), forType: .string)
+                        }
+                        .font(.caption)
+                        .buttonStyle(.plain)
+                        .foregroundStyle(.secondary)
+                        Button("Clear") { manager.debugLines.removeAll() }
+                            .font(.caption)
+                            .buttonStyle(.plain)
+                            .foregroundStyle(.secondary)
+                    }
+                    if debugVisible {
+                        ScrollViewReader { proxy in
+                            ScrollView {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    ForEach(Array(manager.debugLines.enumerated()), id: \.offset) { index, line in
+                                        Text(line)
+                                            .font(.system(size: 10, design: .monospaced))
+                                            .foregroundStyle(.primary)
+                                            .frame(maxWidth: .infinity, alignment: .leading)
+                                            .id(index)
+                                    }
+                                }
+                                .padding(6)
+                            }
+                            .frame(height: 140)
+                            .background(Color(nsColor: .textBackgroundColor).opacity(0.6))
+                            .onChange(of: manager.debugLines.count) { _ in
+                                proxy.scrollTo(manager.debugLines.count - 1, anchor: .bottom)
+                            }
+                        }
+                    }
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 6)
+            }
+        }
         .sheet(isPresented: $showingNamingSheet) {
             NamingSheet(
                 clipContent: pendingClipContent,
@@ -80,7 +133,7 @@ struct ContentView: View {
                 Image(systemName: "plus")
             }
             .buttonStyle(.borderedProminent)
-            .help("Save current clipboard (⌘S)")
+            .help("Save current clipboard (⌘S in app, ⌘⇧C anywhere)")
             .keyboardShortcut("s", modifiers: [.command])
         }
         .padding(.horizontal, 12)
