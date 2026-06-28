@@ -1,0 +1,12 @@
+# Project ratings — edit freely (name | rating out of 10, decimals allowed)
+ProjectHub | 5.0
+AutoClaude | 3.0
+ClipboardCache | 1.5
+PixelScreen | 2.0
+SSBUScraper | 9.0
+AdaptiSearch | 6.0
+2048Solver | 7.8
+ArithmeticCompiler | 7.2
+Swapsona | 6.0
+TradingAlgorithm | 6.5
+TimeTeller | 0.5

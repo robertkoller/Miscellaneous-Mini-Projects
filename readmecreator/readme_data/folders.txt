@@ -1,0 +1,12 @@
+# Project folder names (name | folder) — used to build clickable title links
+SSBUScraper | SSBUScraper
+2048Solver | 2048Solver
+ArithmeticCompiler | ArithmeticCompiler
+TradingAlgorithm | TradingAlgorithm
+AdaptiSearch | AdaptiSearch
+Swapsona | Swapsona
+ProjectHub | ProjectHub
+AutoClaude | AutoClaude
+PixelScreen | PixelScreen
+ClipboardCache | ClipboardCache
+TimeTeller | TimeTeller

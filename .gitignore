@@ -1,6 +1,5 @@
 .DS_Store
 .vscode
-readmecreator/
 
 # Swift build artifacts
 .build/

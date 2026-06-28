@@ -1,0 +1,12 @@
+# Project descriptions — one per line (name | description)
+ProjectHub | A macOS menu bar app for managing and launching all personal projects in one place, with live terminal output, per-project run configurations, and custom icons.
+AutoClaude | I was tired of waiting for sessions to end in Claude so I decided to make a script which starts your session automatically to let you use your weekly tokens to their fullest potential.
+ClipboardCache | A lightweight macOS app for saving multiple clipboard entries because I wanted more than one save with command + c.
+PixelScreen | I had a problem where I would need to import my credit card information while in public and I was scared that others would see so I made an app to pixelate your screen.
+SSBUScraper | I've been playing lots of SSBU with my dorm mates recently and I was curious about the relationship between a character's average matchup scores and their perceived rank on the tier lists, so I scraped the data and built a matchup comparison website.
+AdaptiSearch | An adaptive search bar built fast and efficient using data structures and algorithms, designed to be dropped into any future project.
+2048Solver | Java and JavaScript implementation of the 2048 game with my own personal playing style implemented as an AI algorithm.
+ArithmeticCompiler | Building a compiler for basic strings of math — I wanted to practice working with trees and recursion.
+Swapsona | A Chrome extension that swaps a chosen word on any webpage with another word of your choosing, created to help enhance storytelling and let readers immerse themselves in a narrative.
+TradingAlgorithm | One of my first JavaScript projects where I tried to build a model to predict when to buy crypto and stocks (don't buy crypto — I do not encourage it, I just used it for the project).
+TimeTeller | I was bored so I made this. It tells the future time.
