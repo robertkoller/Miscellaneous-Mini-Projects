@@ -12,6 +12,7 @@ struct ContentView: View {
     @State private var selectedTab: AppTab = .history
     @State private var showingManageProfiles = false
     @State private var slotItem: SlotItem? = nil
+    @State private var showingDebugPanel = false
 
     enum AppTab { case history, hotkeys }
 
@@ -30,8 +31,13 @@ struct ContentView: View {
                 Divider()
                 footerBar
             }
+            if showingDebugPanel {
+                Divider()
+                debugPanel
+            }
         }
         .frame(minWidth: 300, minHeight: 400)
+        .preferredColorScheme(manager.preferredColorScheme)
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             manager.checkAccessibilityAndSetupHotkeys()
         }
@@ -90,6 +96,20 @@ struct ContentView: View {
             .buttonStyle(.bordered)
             .tint(alwaysOnTop ? .orange : .secondary)
             .help(alwaysOnTop ? "Always on top: on" : "Always on top: off")
+
+            Button { manager.cycleColorScheme() } label: {
+                Image(systemName: colorSchemeIcon)
+            }
+            .buttonStyle(.bordered)
+            .tint(.secondary)
+            .help(colorSchemeHelp)
+
+            Button { showingDebugPanel.toggle() } label: {
+                Image(systemName: "terminal")
+            }
+            .buttonStyle(.bordered)
+            .tint(showingDebugPanel ? .purple : .secondary)
+            .help(showingDebugPanel ? "Hide debug log" : "Show debug log")
 
             Button { saveClipboard() } label: {
                 Image(systemName: "plus")
@@ -241,7 +261,73 @@ struct ContentView: View {
         .padding(10)
     }
 
+    // MARK: - Debug Panel
+
+    private var debugPanel: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 8) {
+                Text("Debug Log")
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Button("Copy") {
+                    let text = manager.debugLines.joined(separator: "\n")
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(text, forType: .string)
+                }
+                .buttonStyle(.plain)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                Button("Clear") { manager.debugLines.removeAll() }
+                    .buttonStyle(.plain)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+
+            ScrollViewReader { proxy in
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 2) {
+                        ForEach(Array(manager.debugLines.enumerated()), id: \.offset) { index, line in
+                            Text(line)
+                                .font(.system(.caption2, design: .monospaced))
+                                .foregroundStyle(.secondary)
+                                .textSelection(.enabled)
+                                .id(index)
+                        }
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                }
+                .frame(height: 120)
+                .background(Color(nsColor: .textBackgroundColor).opacity(0.5))
+                .onChange(of: manager.debugLines.count) { _ in
+                    if let last = manager.debugLines.indices.last {
+                        proxy.scrollTo(last, anchor: .bottom)
+                    }
+                }
+            }
+        }
+    }
+
     // MARK: - Actions
+
+    private var colorSchemeIcon: String {
+        switch manager.colorSchemeName {
+        case "dark": return "moon.fill"
+        case "light": return "sun.max.fill"
+        default: return "circle.lefthalf.filled"
+        }
+    }
+
+    private var colorSchemeHelp: String {
+        switch manager.colorSchemeName {
+        case "dark": return "Appearance: Dark — click for Light"
+        case "light": return "Appearance: Light — click for System"
+        default: return "Appearance: System — click for Dark"
+        }
+    }
 
     private func saveClipboard() {
         guard let content = manager.currentClipboardContent(), !content.isEmpty else { return }
@@ -323,7 +409,7 @@ struct HotkeySlotRow: View {
     let onClear: () -> Void
 
     private var shortcutLabel: String {
-        "⌘⇧\(slotData.slot == 10 ? "0" : "\(slotData.slot)")"
+        "⌘⌥\(slotData.slot == 10 ? "0" : "\(slotData.slot)")"
     }
 
     var body: some View {
@@ -380,7 +466,7 @@ struct SlotAssignSheet: View {
     let onDismiss: () -> Void
 
     private var shortcutLabel: String {
-        "⌘⇧\(slot == 10 ? "0" : "\(slot)")"
+        "⌘⌥\(slot == 10 ? "0" : "\(slot)")"
     }
 
     var body: some View {
@@ -547,7 +633,8 @@ struct ManageProfilesSheet: View {
             }
         }
         .padding(20)
-        .frame(width: 340, minHeight: 320)
+        .frame(width: 340)
+        .frame(minHeight: 320)
     }
 
     private func commitRename(_ id: UUID) {

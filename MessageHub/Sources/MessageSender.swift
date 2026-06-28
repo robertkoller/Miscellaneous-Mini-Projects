@@ -1,4 +1,5 @@
 import Foundation
+import AppKit
 import Contacts
 
 struct MessageSender {
@@ -36,38 +37,53 @@ struct MessageSender {
 }
 
 final class ContactsResolver {
-    private var cache: [String: String] = [:]
+    private var nameCache: [String: String] = [:]
+    private var photoCache: [String: NSImage] = [:]
     private var authorizationRequested = false
 
-    func resolveNames(for handles: [String], completion: @escaping ([String: String]) -> Void) {
+    func resolveNamesAndPhotos(
+        for handles: [String],
+        completion: @escaping ([String: String], [String: NSImage]) -> Void
+    ) {
         let status = CNContactStore.authorizationStatus(for: .contacts)
         if status == .notDetermined, !authorizationRequested {
             authorizationRequested = true
             CNContactStore().requestAccess(for: .contacts) { [weak self] granted, _ in
                 if granted {
-                    self?.fetchNames(for: handles, completion: completion)
+                    self?.fetchNamesAndPhotos(for: handles, completion: completion)
                 }
             }
         } else if status == .authorized {
-            fetchNames(for: handles, completion: completion)
+            fetchNamesAndPhotos(for: handles, completion: completion)
         }
     }
 
-    private func fetchNames(for handles: [String], completion: @escaping ([String: String]) -> Void) {
-        let cachedCopy = cache
+    private func fetchNamesAndPhotos(
+        for handles: [String],
+        completion: @escaping ([String: String], [String: NSImage]) -> Void
+    ) {
+        let cachedNames = nameCache
+        let cachedPhotos = photoCache
         DispatchQueue.global(qos: .userInitiated).async {
-            var resolved: [String: String] = [:]
+            var resolvedNames: [String: String] = [:]
+            var resolvedPhotos: [String: NSImage] = [:]
             let store = CNContactStore()
             let keysToFetch = [
                 CNContactGivenNameKey,
                 CNContactFamilyNameKey,
                 CNContactPhoneNumbersKey,
-                CNContactEmailAddressesKey
+                CNContactEmailAddressesKey,
+                CNContactThumbnailImageDataKey
             ] as [CNKeyDescriptor]
 
             for handle in handles {
-                if let cached = cachedCopy[handle] {
-                    resolved[handle] = cached
+                if let cached = cachedNames[handle] {
+                    resolvedNames[handle] = cached
+                }
+                if let cachedPhoto = cachedPhotos[handle] {
+                    resolvedPhotos[handle] = cachedPhoto
+                }
+                if cachedNames[handle] != nil && cachedPhotos[handle] != nil {
                     continue
                 }
 
@@ -84,17 +100,24 @@ final class ContactsResolver {
                 let name = [contact.givenName, contact.familyName]
                     .filter { !$0.isEmpty }
                     .joined(separator: " ")
-
                 if !name.isEmpty {
-                    resolved[handle] = name
+                    resolvedNames[handle] = name
+                }
+
+                if let imageData = contact.thumbnailImageData,
+                   let image = NSImage(data: imageData) {
+                    resolvedPhotos[handle] = image
                 }
             }
 
             DispatchQueue.main.async {
-                for (handle, name) in resolved {
-                    self.cache[handle] = name
+                for (handle, name) in resolvedNames {
+                    self.nameCache[handle] = name
                 }
-                completion(resolved)
+                for (handle, photo) in resolvedPhotos {
+                    self.photoCache[handle] = photo
+                }
+                completion(resolvedNames, resolvedPhotos)
             }
         }
     }

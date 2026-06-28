@@ -1,4 +1,5 @@
 import Foundation
+import AppKit
 import SQLite3
 import CoreServices
 import MessageHubObjC
@@ -73,6 +74,8 @@ struct RawConversation {
     let serviceName: String
     let lastMessage: RawMessage?
     let unreadCount: Int
+    let groupPhoto: NSImage?
+    let wallpaperPath: String?
 }
 
 struct RawMessage {
@@ -92,6 +95,65 @@ final class MessageDatabase {
         let home = FileManager.default.homeDirectoryForCurrentUser.path
         databasePath = "\(home)/Library/Messages/chat.db"
         openDatabase()
+        discoverAndLog()
+    }
+
+    private func discoverAndLog() {
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        let messagesDir = home + "/Library/Messages"
+        let fm = FileManager.default
+        var lines: [String] = ["=== MessageHub Discovery ==="]
+
+        func scan(_ path: String, depth: Int) {
+            guard depth <= 3,
+                  let items = try? fm.contentsOfDirectory(atPath: path) else { return }
+            for item in items.prefix(40) {
+                let full = path + "/" + item
+                var isDir: ObjCBool = false
+                fm.fileExists(atPath: full, isDirectory: &isDir)
+                lines.append(String(repeating: "  ", count: depth) + (isDir.boolValue ? "[D] " : "[F] ") + item)
+                if isDir.boolValue { scan(full, depth: depth + 1) }
+            }
+        }
+
+        scan(messagesDir, depth: 0)
+
+        // Log the properties blob of the first few group chats.
+        if let db {
+            let sql = "SELECT guid, display_name, group_id, properties FROM chat WHERE display_name != '' AND display_name IS NOT NULL AND is_archived = 0 LIMIT 5"
+            var stmt: OpaquePointer?
+            if sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK {
+                while sqlite3_step(stmt) == SQLITE_ROW {
+                    let guid = String(cString: sqlite3_column_text(stmt, 0))
+                    let name = String(cString: sqlite3_column_text(stmt, 1))
+                    let groupId = sqlite3_column_type(stmt, 2) != SQLITE_NULL ? String(cString: sqlite3_column_text(stmt, 2)) : "<null>"
+                    let blob = sqlite3_column_blob(stmt, 3)
+                    let blobLen = sqlite3_column_bytes(stmt, 3)
+                    lines.append("\nChat: '\(name)' guid=\(guid.prefix(50))")
+                    lines.append("  group_id=\(groupId)")
+                    if let blob, blobLen > 0 {
+                        let data = Data(bytes: blob, count: Int(blobLen))
+                        let magic = data.prefix(8).map { String(format: "%02x", $0) }.joined(separator: " ")
+                        lines.append("  properties: \(blobLen) bytes, magic=[\(magic)]")
+                        if let plist = try? PropertyListSerialization.propertyList(from: data, options: [], format: nil) as? NSDictionary {
+                            lines.append("  plist keys: \((plist.allKeys as? [String] ?? []).sorted().joined(separator: ", "))")
+                        } else if let unarchiver = try? NSKeyedUnarchiver(forReadingFrom: data) {
+                            unarchiver.requiresSecureCoding = false
+                            lines.append("  (NSKeyedArchiver format)")
+                        } else {
+                            lines.append("  (unknown format)")
+                        }
+                    } else {
+                        lines.append("  properties: NULL")
+                    }
+                }
+                sqlite3_finalize(stmt)
+            }
+        }
+
+        let content = lines.joined(separator: "\n")
+        let logURL = URL(fileURLWithPath: home + "/Desktop/MessageHubDiscovery.txt")
+        try? content.data(using: .utf8)?.write(to: logURL)
     }
 
     var isOpen: Bool { db != nil }
@@ -134,7 +196,10 @@ final class MessageDatabase {
             m.date as msg_date,
             COALESCE(m.is_from_me, 0) as is_from_me,
             COALESCE(m.cache_has_attachments, 0) as has_attachments,
-            COALESCE(unread.unread_count, 0) as unread_count
+            m.attributedBody as msg_attributed_body,
+            COALESCE(unread.unread_count, 0) as unread_count,
+            c.properties as chat_properties,
+            COALESCE(c.group_id, '') as group_id
         FROM chat c
         LEFT JOIN (
             SELECT cmj.chat_id, MAX(cmj.message_id) as latest_id
@@ -166,11 +231,18 @@ final class MessageDatabase {
             let displayName = columnString(statement, 2) ?? ""
             let serviceName = columnString(statement, 3) ?? "iMessage"
             let msgRowid = sqlite3_column_int64(statement, 4)
-            let msgText = columnString(statement, 5)
+            var msgText = columnString(statement, 5)
             let msgTimestamp = sqlite3_column_int64(statement, 6)
             let isFromMe = sqlite3_column_int(statement, 7) == 1
             let hasAttachments = sqlite3_column_int(statement, 8) == 1
-            let unreadCount = Int(sqlite3_column_int(statement, 9))
+            let attributedBodyData = columnData(statement, 9)
+            let unreadCount = Int(sqlite3_column_int(statement, 10))
+            let propertiesData = columnData(statement, 11)
+            let groupId = columnString(statement, 12) ?? ""
+
+            if (msgText == nil || msgText!.isEmpty), let data = attributedBodyData {
+                msgText = extractText(fromAttributedBody: data)
+            }
 
             let lastMessage: RawMessage? = msgRowid > 0 ? RawMessage(
                 id: msgRowid,
@@ -180,13 +252,18 @@ final class MessageDatabase {
                 hasAttachments: hasAttachments
             ) : nil
 
+            let groupPhoto = propertiesData.flatMap { extractGroupPhoto(from: $0) }
+            let wallpaperPath = findWallpaper(forChatGuid: guid, groupId: groupId, chatRowid: chatId)
+
             results.append(RawConversation(
                 id: chatId,
                 guid: guid,
                 displayName: displayName,
                 serviceName: serviceName,
                 lastMessage: lastMessage,
-                unreadCount: unreadCount
+                unreadCount: unreadCount,
+                groupPhoto: groupPhoto,
+                wallpaperPath: wallpaperPath
             ))
         }
         return results
@@ -515,6 +592,113 @@ final class MessageDatabase {
             return swiftText
         }
         return nil
+    }
+
+    private func extractGroupPhoto(from data: Data) -> NSImage? {
+        // Method 1: NSKeyedUnarchiver — modern macOS stores chat properties as an archive.
+        if let unarchiver = try? NSKeyedUnarchiver(forReadingFrom: data) {
+            unarchiver.requiresSecureCoding = false
+            let photoKeys = ["groupPhotoData", "avatarImageData", "photoData",
+                             "imageData", "CKChatGroupPhotoData", "iconData"]
+            for key in photoKeys {
+                if let imgData = unarchiver.decodeObject(forKey: key) as? Data,
+                   let image = NSImage(data: imgData) { return image }
+            }
+            if let root = unarchiver.decodeObject(forKey: NSKeyedArchiveRootObjectKey) {
+                if let image = root as? NSImage { return image }
+                if let imgData = root as? Data, let image = NSImage(data: imgData) { return image }
+                if let dict = root as? NSDictionary {
+                    for value in dict.allValues {
+                        if let image = value as? NSImage { return image }
+                        if let imgData = value as? Data, let image = NSImage(data: imgData) { return image }
+                    }
+                }
+            }
+        }
+        // Method 2: Simple binary plist — look for any Data value that decodes as an image.
+        if let plist = try? PropertyListSerialization.propertyList(
+            from: data, options: [], format: nil
+        ) as? NSDictionary {
+            for value in plist.allValues {
+                if let imgData = value as? Data, imgData.count > 500,
+                   let image = NSImage(data: imgData) { return image }
+            }
+        }
+        // Method 3: The data itself might be raw image bytes.
+        if data.count > 1000, let image = NSImage(data: data) { return image }
+        return nil
+    }
+
+    private func findWallpaper(forChatGuid guid: String, groupId: String, chatRowid: Int64) -> String? {
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        let wallpapersDir = home + "/Library/Messages/Wallpapers"
+        let fm = FileManager.default
+        let imageExtensions = Set(["jpg", "jpeg", "png", "heic", "heif"])
+
+        func firstImage(in directory: String) -> String? {
+            guard let files = try? fm.contentsOfDirectory(atPath: directory) else { return nil }
+            for file in files.sorted() {
+                let ext = (file as NSString).pathExtension.lowercased()
+                if imageExtensions.contains(ext) { return directory + "/" + file }
+            }
+            return nil
+        }
+
+        // Try common patterns: guid, group_id, rowid as directory names.
+        for candidate in [guid, groupId, "\(chatRowid)"] where !candidate.isEmpty {
+            if let path = firstImage(in: wallpapersDir + "/" + candidate) { return path }
+        }
+
+        // Scan all subdirectories — the name may be a UUID or hash we can't predict.
+        // Match by looking for a metadata plist that references the chat guid.
+        guard let entries = try? fm.contentsOfDirectory(atPath: wallpapersDir) else { return nil }
+        let guidParts = guid.components(separatedBy: CharacterSet(charactersIn: ";+-={}"))
+                            .filter { $0.count > 6 }
+        for entry in entries {
+            let entryPath = wallpapersDir + "/" + entry
+            var isDir: ObjCBool = false
+            fm.fileExists(atPath: entryPath, isDirectory: &isDir)
+            guard isDir.boolValue else { continue }
+
+            // Try a metadata plist match.
+            let metaPaths = [entryPath + "/metadata.plist", entryPath + "/info.plist"]
+            for metaPath in metaPaths {
+                if let metaData = fm.contents(atPath: metaPath),
+                   let plist = try? PropertyListSerialization.propertyList(
+                       from: metaData, options: [], format: nil
+                   ) as? NSDictionary {
+                    let plistStr = "\(plist)"
+                    let matchesGuid = guidParts.contains { plistStr.contains($0) }
+                    if matchesGuid, let path = firstImage(in: entryPath) { return path }
+                }
+            }
+
+            // Fall back to partial name match.
+            if guidParts.contains(where: { entry.contains($0) }),
+               let path = firstImage(in: entryPath) { return path }
+        }
+        return nil
+    }
+
+    func loadAttachmentPaths(for messageId: Int64) -> [String] {
+        guard ensureOpen() else { return [] }
+        let sql = """
+        SELECT a.filename FROM attachment a
+        JOIN message_attachment_join maj ON a.rowid = maj.attachment_id
+        WHERE maj.message_id = ?
+        """
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else { return [] }
+        defer { sqlite3_finalize(statement) }
+        sqlite3_bind_int64(statement, 1, messageId)
+        var paths: [String] = []
+        while sqlite3_step(statement) == SQLITE_ROW {
+            if let raw = columnString(statement, 0) {
+                let expanded = raw.replacingOccurrences(of: "~", with: NSHomeDirectory(), options: .anchored)
+                paths.append(expanded)
+            }
+        }
+        return paths
     }
 
     private func columnString(_ statement: OpaquePointer?, _ index: Int32) -> String? {

@@ -10,6 +10,10 @@ final class ConversationStore: ObservableObject {
     @Published var isDatabaseAccessible = true
     @Published var hasMoreMessages = false
     @Published var sendError: String? = nil
+    @Published var resolvedContactNames: [String: String] = [:]
+    @Published var resolvedContactPhotos: [String: NSImage] = [:]
+    // Incremented after a full conversation load — used to trigger scroll-to-bottom reliably.
+    @Published var conversationLoadToken: Int = 0
 
     private let database = MessageDatabase()
     private let watcher = DatabaseWatcher()
@@ -84,7 +88,9 @@ final class ConversationStore: ObservableObject {
                 lastMessage: lastMessage,
                 dbUnreadCount: effectiveUnread,
                 isMuted: mutedChatIds.contains(raw.id),
-                serviceName: raw.serviceName
+                serviceName: raw.serviceName,
+                contactImage: raw.groupPhoto,
+                wallpaperPath: raw.wallpaperPath
             )
         }
 
@@ -115,16 +121,26 @@ final class ConversationStore: ObservableObject {
         }
 
         let allHandles = Set(updated.flatMap { $0.participants })
-        contactsResolver.resolveNames(for: Array(allHandles)) { [weak self] resolved in
+        contactsResolver.resolveNamesAndPhotos(for: Array(allHandles)) { [weak self] resolvedNames, resolvedPhotos in
             guard let self else { return }
+            self.resolvedContactNames.merge(resolvedNames) { _, new in new }
+            self.resolvedContactPhotos.merge(resolvedPhotos) { _, new in new }
+
             for index in self.conversations.indices {
                 let conversation = self.conversations[index]
+                // Resolve display name for 1:1 chats and group chats with no set name.
                 if conversation.displayName.isEmpty ||
                    (conversation.participants.count == 1 && conversation.displayName == conversation.participants.first) {
-                    let resolvedNames = conversation.participants.compactMap { resolved[$0] }
-                    if !resolvedNames.isEmpty {
-                        self.conversations[index].displayName = resolvedNames.joined(separator: ", ")
+                    let names = conversation.participants.compactMap { resolvedNames[$0] }
+                    if !names.isEmpty {
+                        self.conversations[index].displayName = names.joined(separator: ", ")
                     }
+                }
+                // Set contact photo for 1:1 chats.
+                if conversation.participants.count == 1,
+                   let handle = conversation.participants.first,
+                   let photo = resolvedPhotos[handle] {
+                    self.conversations[index].contactImage = photo
                 }
             }
         }
@@ -132,13 +148,13 @@ final class ConversationStore: ObservableObject {
 
     func selectConversation(_ chatId: Int64) {
         selectedChatId = chatId
+        messages = []
         oldestLoadedMessageId = nil
         hasMoreMessages = false
         loadInitialMessages(for: chatId)
         markSeen(chatId: chatId)
     }
 
-    // Force-clears and reloads messages for the given chat. Selects it if not already open.
     func forceRefresh(chatId: Int64) {
         selectedChatId = chatId
         messages = []
@@ -150,18 +166,29 @@ final class ConversationStore: ObservableObject {
 
     // Full initial load for a conversation: fetches the most recent `pageSize` messages.
     private func loadInitialMessages(for chatId: Int64) {
-        // Fetch one extra to know whether older pages exist.
         let fetched = database.loadMessages(for: chatId, limit: pageSize + 1)
         let hasMore = fetched.count > pageSize
-        let displayed = hasMore ? Array(fetched.suffix(pageSize)) : fetched
+        var displayed = hasMore ? Array(fetched.suffix(pageSize)) : fetched
+
+        displayed = loadAttachments(for: displayed)
 
         if chatId == selectedChatId {
             messages = displayed
             hasMoreMessages = hasMore
             oldestLoadedMessageId = displayed.first?.id
+            conversationLoadToken += 1
         }
         if let lastMessage = displayed.last {
             markSeen(chatId: chatId, upTo: lastMessage.id)
+        }
+    }
+
+    private func loadAttachments(for messageList: [Message]) -> [Message] {
+        return messageList.map { message in
+            guard message.hasAttachments else { return message }
+            var updated = message
+            updated.attachmentPaths = database.loadAttachmentPaths(for: message.id)
+            return updated
         }
     }
 
@@ -169,15 +196,15 @@ final class ConversationStore: ObservableObject {
     // so that scrolling position and already-loaded older messages are preserved.
     private func appendNewMessages(for chatId: Int64) {
         guard chatId == selectedChatId, let lastKnownId = messages.last?.id else { return }
-        let newMessages = database.loadMessagesAfter(chatId: chatId, afterMessageId: lastKnownId)
+        var newMessages = database.loadMessagesAfter(chatId: chatId, afterMessageId: lastKnownId)
         guard !newMessages.isEmpty else { return }
+        newMessages = loadAttachments(for: newMessages)
         messages.append(contentsOf: newMessages)
         if let lastMessage = newMessages.last {
             markSeen(chatId: chatId, upTo: lastMessage.id)
         }
     }
 
-    // Loads the next page of older messages — called when the user scrolls to the top.
     func loadMoreMessages() {
         guard let chatId = selectedChatId,
               let oldestId = oldestLoadedMessageId,
@@ -185,7 +212,8 @@ final class ConversationStore: ObservableObject {
 
         let fetched = database.loadMessages(for: chatId, limit: pageSize + 1, before: oldestId)
         let hasMore = fetched.count > pageSize
-        let newBatch = hasMore ? Array(fetched.suffix(pageSize)) : fetched
+        var newBatch = hasMore ? Array(fetched.suffix(pageSize)) : fetched
+        newBatch = loadAttachments(for: newBatch)
 
         messages = newBatch + messages
         hasMoreMessages = hasMore

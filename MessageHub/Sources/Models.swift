@@ -1,4 +1,5 @@
 import Foundation
+import AppKit
 
 struct Conversation: Identifiable {
     let id: Int64
@@ -9,6 +10,8 @@ struct Conversation: Identifiable {
     var dbUnreadCount: Int
     var isMuted: Bool
     let serviceName: String
+    var contactImage: NSImage?
+    var wallpaperPath: String?
 
     var effectiveDisplayName: String {
         !displayName.isEmpty ? displayName : participants.joined(separator: ", ")
@@ -42,11 +45,29 @@ struct Message: Identifiable {
     let senderHandle: String?
     let hasAttachments: Bool
     let associatedMessageType: Int32
+    var attachmentPaths: [String] = []
 
     var displayText: String {
         if let text = text, !text.isEmpty {
             return text
         }
-        return hasAttachments ? "[Attachment]" : "[Message]"
+        if hasAttachments {
+            return ""
+        }
+        return "[Message]"
+    }
+
+    var hasImageAttachment: Bool {
+        attachmentPaths.contains { path in
+            let ext = (path as NSString).pathExtension.lowercased()
+            return ["jpg", "jpeg", "png", "gif", "heic", "heif", "webp", "tiff"].contains(ext)
+        }
+    }
+
+    var imageAttachmentPaths: [String] {
+        attachmentPaths.filter { path in
+            let ext = (path as NSString).pathExtension.lowercased()
+            return ["jpg", "jpeg", "png", "gif", "heic", "heif", "webp", "tiff"].contains(ext)
+        }
     }
 }

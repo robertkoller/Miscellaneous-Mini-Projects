@@ -1,5 +1,7 @@
 import Foundation
 import AppKit
+import SwiftUI
+import Carbon.HIToolbox
 
 struct ClipEntry: Identifiable, Codable {
     let id: UUID
@@ -35,6 +37,7 @@ private struct AppData: Codable {
     var entries: [ClipEntry]
     var profiles: [Profile]
     var activeProfileID: UUID?
+    var colorSchemeName: String?
 }
 
 @MainActor
@@ -44,6 +47,26 @@ final class ClipManager: ObservableObject {
     @Published var activeProfileID: UUID?
     @Published var namingEnabled: Bool = false
     @Published var hasAccessibilityAccess: Bool = false
+    @Published var debugLines: [String] = []
+    @Published var colorSchemeName: String? = nil
+    var lastFrontmostPID: pid_t = 0
+
+    var preferredColorScheme: ColorScheme? {
+        switch colorSchemeName {
+        case "dark": return .dark
+        case "light": return .light
+        default: return nil
+        }
+    }
+
+    func cycleColorScheme() {
+        switch colorSchemeName {
+        case nil: colorSchemeName = "dark"
+        case "dark": colorSchemeName = "light"
+        default: colorSchemeName = nil
+        }
+        saveData()
+    }
 
     private var globalMonitor: Any?
     private let saveURL: URL
@@ -84,13 +107,19 @@ final class ClipManager: ObservableObject {
         entries = appData.entries
         profiles = appData.profiles
         activeProfileID = appData.activeProfileID
+        colorSchemeName = appData.colorSchemeName
         if activeProfileID == nil || !profiles.contains(where: { $0.id == activeProfileID }) {
             activeProfileID = profiles.first?.id
         }
     }
 
     func saveData() {
-        let appData = AppData(entries: entries, profiles: profiles, activeProfileID: activeProfileID)
+        let appData = AppData(
+            entries: entries,
+            profiles: profiles,
+            activeProfileID: activeProfileID,
+            colorSchemeName: colorSchemeName
+        )
         guard let data = try? JSONEncoder().encode(appData) else { return }
         try? data.write(to: saveURL, options: .atomic)
     }
@@ -118,12 +147,18 @@ final class ClipManager: ObservableObject {
 
         globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] event in
             let mods = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
-            guard mods == [.command, .shift],
+            guard mods == [.command, .option],
                   let slot = keyCodes[event.keyCode] else { return }
             Task { @MainActor [weak self] in
                 self?.triggerSlot(slot)
             }
         }
+    }
+
+    func log(_ message: String) {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm:ss.SSS"
+        debugLines.append("[\(formatter.string(from: Date()))] \(message)")
     }
 
     // MARK: - Entries
@@ -194,6 +229,19 @@ final class ClipManager: ObservableObject {
     func triggerSlot(_ slot: Int) {
         guard let content = activeProfile?.slots.first(where: { $0.slot == slot })?.content else { return }
         copyToClipboard(content)
+        guard lastFrontmostPID != 0 else { return }
+        let targetPID = lastFrontmostPID
+        // Delay so the user's Cmd+Shift keys are released before the V event fires.
+        // Without this, apps read global keyboard state and see Cmd+Shift+V instead of Cmd+V.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            let source = CGEventSource(stateID: .combinedSessionState)
+            let keyDown = CGEvent(keyboardEventSource: source, virtualKey: CGKeyCode(kVK_ANSI_V), keyDown: true)
+            keyDown?.flags = .maskCommand
+            let keyUp = CGEvent(keyboardEventSource: source, virtualKey: CGKeyCode(kVK_ANSI_V), keyDown: false)
+            keyUp?.flags = .maskCommand
+            keyDown?.postToPid(targetPID)
+            keyUp?.postToPid(targetPID)
+        }
     }
 
     // MARK: - Clipboard
