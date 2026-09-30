@@ -50,6 +50,8 @@ final class ClipManager: ObservableObject {
     @Published var debugLines: [String] = []
     @Published var colorSchemeName: String? = nil
     var lastFrontmostPID: pid_t = 0
+    private var savedPasteboardItems: [NSPasteboardItem] = []
+    private var pendingRestore: DispatchWorkItem?
 
     var preferredColorScheme: ColorScheme? {
         switch colorSchemeName {
@@ -228,9 +230,23 @@ final class ClipManager: ObservableObject {
 
     func triggerSlot(_ slot: Int) {
         guard let content = activeProfile?.slots.first(where: { $0.slot == slot })?.content else { return }
-        copyToClipboard(content)
         guard lastFrontmostPID != 0 else { return }
         let targetPID = lastFrontmostPID
+
+        // If a restore is still pending from a previous slot paste the pasteboard currently holds
+        // that slot's text, so we keep the original snapshot instead of taking a new one
+        if pendingRestore == nil {
+            savedPasteboardItems = snapshotPasteboard()
+        }
+        pendingRestore?.cancel()
+
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(content, forType: .string)
+        // Tells other clipboard managers to ignore this temporary write
+        pasteboard.setData(Data(), forType: NSPasteboard.PasteboardType("org.nspasteboard.TransientType"))
+        let slotChangeCount = pasteboard.changeCount
+
         // Delay so the user's Cmd+Shift keys are released before the V event fires.
         // Without this, apps read global keyboard state and see Cmd+Shift+V instead of Cmd+V.
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
@@ -241,6 +257,40 @@ final class ClipManager: ObservableObject {
             keyUp?.flags = .maskCommand
             keyDown?.postToPid(targetPID)
             keyUp?.postToPid(targetPID)
+        }
+
+        // Put the user's real clipboard back once the target app has had time to read the paste
+        let restore = DispatchWorkItem { [weak self] in
+            guard let self = self else { return }
+            self.pendingRestore = nil
+            let saved = self.savedPasteboardItems
+            self.savedPasteboardItems = []
+            // If the user copied something new in the meantime we leave it alone
+            guard NSPasteboard.general.changeCount == slotChangeCount else { return }
+            self.restorePasteboard(saved)
+        }
+        pendingRestore = restore
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: restore)
+    }
+
+    private func snapshotPasteboard() -> [NSPasteboardItem] {
+        guard let items = NSPasteboard.general.pasteboardItems else { return [] }
+        return items.map { item in
+            let copy = NSPasteboardItem()
+            for type in item.types {
+                if let data = item.data(forType: type) {
+                    copy.setData(data, forType: type)
+                }
+            }
+            return copy
+        }
+    }
+
+    private func restorePasteboard(_ items: [NSPasteboardItem]) {
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        if !items.isEmpty {
+            pasteboard.writeObjects(items)
         }
     }
 
